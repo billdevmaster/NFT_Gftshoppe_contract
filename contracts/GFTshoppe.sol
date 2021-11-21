@@ -4,19 +4,18 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract GFTShoppe is ERC721, ERC721Enumerable, Ownable {
-    using Counters for Counters.Counter;
     using Strings for *;
-    Counters.Counter public _tokenIDs;
+    using SafeMath for uint256;
 
     mapping(address => bool) public isAdmin;
     mapping(address => uint256) public tokenCounters;
 
     string public baseTokenURI;
-    uint256 private mintAmount = 0.02 ether;
-    uint256 private maxMintCount = 5;
+    uint256 public mintPrice = 0.02 ether;
+    uint256 public maxMintCount = 5;
 
     constructor() ERC721("Gft Shoppe", "GFTShoppe") {
     }
@@ -46,27 +45,25 @@ contract GFTShoppe is ERC721, ERC721Enumerable, Ownable {
     }
 
     function createItem(uint256 amount) public payable {
-        require(_tokenIDs.current() + amount <= 10000, "Max mint amount is reached");
+        uint256 supply = totalSupply();
+        require(supply + amount <= 10000, "Max mint amount is reached");
         require(
             tokenCounters[msg.sender] + amount <= maxMintCount,
             "Exceed the Max Amount to mint."
         );
-        require(amount * mintAmount == msg.value, "You sent the incorrect amount of tokens");
+        require(amount * mintPrice == msg.value, "You sent the incorrect amount of tokens");
         for (uint256 i = 0; i < amount; i++) {
-            _tokenIDs.increment();
-            uint256 newItemID = _tokenIDs.current();
-            _safeMint(msg.sender , newItemID);
+            _safeMint(msg.sender , supply + i);
         }
         tokenCounters[msg.sender] = tokenCounters[msg.sender] + amount;
     }
 
     function createTeamItem(uint256 amount) public onlyAdmin {
-        require(_tokenIDs.current() + amount <= 10000, "Max mint amount is reached");
+        uint256 supply = totalSupply();
+        require(supply + amount <= 10000, "Max mint amount is reached");
         
         for (uint256 i = 0; i < amount; i++) {
-            _tokenIDs.increment();
-            uint256 newItemID = _tokenIDs.current();
-            _safeMint(msg.sender , newItemID);
+            _safeMint(msg.sender , supply + i);
         }
         tokenCounters[msg.sender] = tokenCounters[msg.sender] + amount;
     }
@@ -96,8 +93,8 @@ contract GFTShoppe is ERC721, ERC721Enumerable, Ownable {
         payable(msg.sender).transfer(balance);
     }
 
-    function setMintAmount(uint256 amount) public onlyOwner {
-        mintAmount = amount;
+    function setMintPrice(uint256 price) public onlyOwner {
+        mintPrice = price;
     }
 
     function setMaxMintCount(uint256 count) public onlyOwner {
