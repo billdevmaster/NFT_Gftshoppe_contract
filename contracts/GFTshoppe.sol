@@ -1,64 +1,54 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-contract GFTShoppe is ERC721, ERC721Enumerable, Ownable {
+contract GFTShoppe is ERC721Enumerable, Ownable {
     using Strings for *;
-    using SafeMath for uint256;
 
-    mapping(address => bool) public isAdmin;
     mapping(address => uint256) public tokenCounters;
 
-    string public baseTokenURI;
+    string public baseTokenURI = "";
     uint256 public mintPrice = 0.02 ether;
     uint256 public maxMintCount = 5;
+    bool public isReaveled = false;
+
+    event SetBaseURI(address _from, string value);
+    event CreatedItem(address _from, uint256 _tokenId);
+    event RevealOpensea(address _from);
+    event Withdraw(address _from, uint amount);
+    event SetMintPrice(address _from, uint256 price);
+    event SetMaxMintCount(address _from, uint256 count);
 
     constructor() ERC721("Gft Shoppe", "GFTShoppe") {
-    }
-
-    modifier onlyMinter() {
-        require(
-            isAdmin[_msgSender()] ||
-                owner() == _msgSender(),
-            " caller has no minting right!!!"
-        );
-        _;
-    }
-    modifier onlyAdmin() {
-        require(
-            isAdmin[_msgSender()] || owner() == _msgSender(),
-            " caller has no minting right!!!"
-        );
-        _;
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
         return baseTokenURI;
     }
 
-    function setBaseURI(string memory baseURI) public onlyOwner {
+    function setBaseURI(string memory baseURI) external onlyOwner {
         baseTokenURI = baseURI;
+        emit SetBaseURI(msg.sender, baseURI);
     }
 
-    function createItem(uint256 amount) public payable {
+    function createItem(uint256 amount) external payable {
         uint256 supply = totalSupply();
         require(supply + amount <= 10000, "Max mint amount is reached");
         require(
             tokenCounters[msg.sender] + amount <= maxMintCount,
             "Exceed the Max Amount to mint."
         );
-        require(amount * mintPrice == msg.value, "You sent the incorrect amount of tokens");
+        require(amount * mintPrice == msg.value, "Price must be 0.02 eth for each NFT");
         for (uint256 i = 0; i < amount; i++) {
             _safeMint(msg.sender , supply + i);
         }
         tokenCounters[msg.sender] = tokenCounters[msg.sender] + amount;
+        emit CreatedItem(msg.sender, totalSupply());
     }
 
-    function createTeamItem(uint256 amount) public onlyAdmin {
+    function createTeamItem(uint256 amount) external onlyOwner {
         uint256 supply = totalSupply();
         require(supply + amount <= 10000, "Max mint amount is reached");
         
@@ -68,62 +58,34 @@ contract GFTShoppe is ERC721, ERC721Enumerable, Ownable {
         tokenCounters[msg.sender] = tokenCounters[msg.sender] + amount;
     }
 
-    function addAdmin(address adminAddress) public onlyOwner {
-        require(
-            adminAddress != address(0),
-            " admin Address is the zero address"
-        );
-        isAdmin[adminAddress] = true;
+    function setRevealOpenSea() external onlyOwner {
+        isReaveled = !isReaveled;
+        emit RevealOpensea(msg.sender);
     }
 
-    function removeAdmin(address adminAddress) public onlyOwner {
-        require(
-            adminAddress != address(0),
-            " admin Address is the zero address"
-        );
-        isAdmin[adminAddress] = false;
-    }
-
-    function setRevealOpenSea(string memory baseURI) public onlyAdmin {
-        baseTokenURI = baseURI;
-    }
-
-    function withdraw() public onlyAdmin payable {
+    function withdraw() external onlyOwner {
         uint256 balance = address(this).balance;
         payable(msg.sender).transfer(balance);
+        emit Withdraw(msg.sender, balance);
     }
 
-    function setMintPrice(uint256 price) public onlyOwner {
+    function setMintPrice(uint256 price) external onlyOwner {
         mintPrice = price;
+        emit SetMintPrice(msg.sender, price);
     }
 
-    function setMaxMintCount(uint256 count) public onlyOwner {
+    function setMaxMintCount(uint256 count) external onlyOwner {
         maxMintCount = count;
+        emit SetMaxMintCount(msg.sender, count);
     }
 
-    function walletOfUser(address user) public view returns(uint256[] memory) {
+    function walletOfUser(address user) external view returns(uint256[] memory) {
         uint256 tokenCount = balanceOf(user);
 
         uint256[] memory tokensId = new uint256[](tokenCount);
-        for(uint256 i; i < tokenCount; i++){
+        for(uint256 i = 0; i < tokenCount; i++){
             tokensId[i] = tokenOfOwnerByIndex(user, i);
         }
         return tokensId;
-    }
-
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId)
-        internal
-        override(ERC721, ERC721Enumerable)
-    {
-        super._beforeTokenTransfer(from, to, tokenId);
-    }
-
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override(ERC721, ERC721Enumerable)
-        returns (bool)
-    {
-        return super.supportsInterface(interfaceId);
     }
 }
