@@ -9,9 +9,10 @@ contract GFTShoppe is ERC721Enumerable, Ownable {
 
     mapping(address => uint256) public tokenCounters;
 
-    string public baseTokenURI = "";
+    string public baseTokenURI;
     uint256 public mintPrice = 0.02 ether;
     uint256 public maxMintCount = 5;
+    uint256 public maxTotalSupply =10000;
     bool public isReaveled = false;
 
     event SetBaseURI(address _from, string value);
@@ -21,7 +22,8 @@ contract GFTShoppe is ERC721Enumerable, Ownable {
     event SetMintPrice(address _from, uint256 price);
     event SetMaxMintCount(address _from, uint256 count);
 
-    constructor() ERC721("Gft Shoppe", "GFTShoppe") {
+    constructor(string memory _baseUri) ERC721("GFT Shoppe", "GFTShoppe") {
+        baseTokenURI = _baseUri;
     }
 
     function _baseURI() internal view virtual override returns (string memory) {
@@ -35,7 +37,8 @@ contract GFTShoppe is ERC721Enumerable, Ownable {
 
     function createItem(uint256 amount) external payable {
         uint256 supply = totalSupply();
-        require(supply + amount <= 10000, "Max mint amount is reached");
+        require(amount > 0, "Mint amount can't be zero");
+        require(supply + amount <= maxTotalSupply, "Max mint amount is reached");
         require(
             tokenCounters[msg.sender] + amount <= maxMintCount,
             "Exceed the Max Amount to mint."
@@ -50,7 +53,7 @@ contract GFTShoppe is ERC721Enumerable, Ownable {
 
     function createTeamItem(uint256 amount) external onlyOwner {
         uint256 supply = totalSupply();
-        require(supply + amount <= 10000, "Max mint amount is reached");
+        require(supply + amount <= maxTotalSupply, "Max mint amount is reached");
         
         for (uint256 i = 0; i < amount; i++) {
             _safeMint(msg.sender , supply + i);
@@ -80,11 +83,15 @@ contract GFTShoppe is ERC721Enumerable, Ownable {
     }
 
     function walletOfUser(address user) external view returns(uint256[] memory) {
-        uint256 tokenCount = balanceOf(user);
+        uint256 tokenCount = 0;
+        uint256[] memory tokensId = new uint256[](0);
 
-        uint256[] memory tokensId = new uint256[](tokenCount);
-        for(uint256 i = 0; i < tokenCount; i++){
-            tokensId[i] = tokenOfOwnerByIndex(user, i);
+        tokenCount = balanceOf(user);
+        if (tokenCount > 0) {
+            tokensId = new uint256[](tokenCount);
+            for(uint256 i = 0; i < tokenCount; i++){
+                tokensId[i] = tokenOfOwnerByIndex(user, i);
+            }
         }
         return tokensId;
     }
